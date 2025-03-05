@@ -16,7 +16,7 @@ humidifier_on = False
 set_temp = 25
 set_humidity = 50
 schedule_time = None
-duration_hours = None  # Số giờ chạy rồi tắt
+duration_hours = None 
 duration_start = None
 
 def toggle_auto_mode():
@@ -46,17 +46,22 @@ def set_humidity_level(humidity):
 
 def set_schedule():
     global schedule_time
-    schedule_time = schedule_entry.get()
+    schedule_time = schedule_entry.get()  #
+    print(f"🕒 Đã đặt hẹn giờ! Điều hòa sẽ BẬT vào {schedule_time} và chạy trong 2 phút.")
     update_ui()
+
 
 def set_duration():
     global duration_hours, duration_start
-    try:
-        duration_hours = int(duration_entry.get())
-        duration_start = datetime.datetime.now()
-        update_ui()
-    except ValueError:
-        pass
+    if aircon_on or humidifier_on:  
+        try:
+            duration_hours = int(duration_entry.get()) 
+            duration_start = datetime.datetime.now()
+            print(f"⏳ Đã đặt thời gian chạy {duration_hours} phút. Điều hòa sẽ tự tắt sau {duration_hours} phút.")
+            update_ui()
+        except ValueError:
+            print("⚠️ Lỗi: Hãy nhập số phút hợp lệ!")
+
 
 def update_display(temp, humidity):
     lcd.clear()
@@ -98,21 +103,40 @@ def control_humidifier(humidity):
             humidifier_on = False
         update_ui()
 
+schedule_activated = False 
+
 def check_schedule():
-    global aircon_on
+    global aircon_on, humidifier_on, duration_start, schedule_activated
     now = datetime.datetime.now().strftime("%H:%M")
-    if schedule_time and now == schedule_time:
-        aircon_on = not aircon_on
+
+    if schedule_time and now == schedule_time and not aircon_on and not schedule_activated:
+        aircon_on = True
+        humidifier_on = True
+        duration_start = datetime.datetime.now()
+        schedule_activated = True  
+        print(f"🕒 Hẹn giờ kích hoạt! Điều hòa và máy phun sương đã BẬT vào {now}. Tự động tắt sau 2 phút.")
         update_ui()
 
+    if duration_start:
+        elapsed = (datetime.datetime.now() - duration_start).total_seconds() / 60
+        if elapsed >= 2:  # Sau 2 phút thì tắt
+            aircon_on = False
+            humidifier_on = False
+            duration_start = None
+            schedule_activated = False 
+            print(f"⏳ Đã hết 2 phút! Điều hòa và máy phun sương đã TẮT.")
+            update_ui()
+
 def check_duration():
-    global aircon_on, duration_hours, duration_start
+    global aircon_on, humidifier_on, duration_hours, duration_start
     if duration_hours and duration_start:
-        elapsed = (datetime.datetime.now() - duration_start).total_seconds() / 3600
+        elapsed = (datetime.datetime.now() - duration_start).total_seconds() / 60 
         if elapsed >= duration_hours:
             aircon_on = False
+            humidifier_on = False
             duration_hours = None
             duration_start = None
+            print(f"⏳ Hết thời gian cài đặt! Điều hòa và máy phun sương đã TẮT.")
             update_ui()
 
 def update_ui():
