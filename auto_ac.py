@@ -119,7 +119,7 @@ def check_schedule():
 
     if duration_start:
         elapsed = (datetime.datetime.now() - duration_start).total_seconds() / 60
-        if elapsed >= 2:  # Sau 2 phút thì tắt
+        if elapsed >= 2:  # Sau 2 phút thì tắt (tiện cho việc test)
             aircon_on = False
             humidifier_on = False
             duration_start = None
