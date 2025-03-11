@@ -141,7 +141,7 @@ def check_duration():
 
 def update_ui():
     auto_btn.config(text=f"Auto Mode: {'ON' if auto_mode else 'OFF'}")
-    ac_btn.config(text=f"AC: {'ON' if aircon_on else 'OFF'}")
+    ac_btn.config(text=f"Temperature: {'ON' if aircon_on else 'OFF'}")
     humidifier_btn.config(text=f"Humidifier: {'ON' if humidifier_on else 'OFF'}")
     temp_label.config(text=f"Nhiệt độ cài đặt: {set_temp}°C")
     humidity_label.config(text=f"Độ ẩm cài đặt: {set_humidity}%")
@@ -155,25 +155,26 @@ def main_loop():
     control_humidifier(humidity)
     check_schedule()
     check_duration()
-    root.after(1000, main_loop)
+    root.after(3000, main_loop)
 
 # Giao diện Tkinter
 root = tk.Tk()
+root.geometry("500x400")
 root.title("Điều hòa thông minh")
 
 # Auto Mode
-auto_btn = tk.Button(root, text="Auto Mode: OFF", command=toggle_auto_mode)
+auto_btn = tk.Button(root, text="Auto Mode: OFF", command=toggle_auto_mode, font=("Arial", 13))
 auto_btn.pack()
 
 # Bật/tắt điều hòa
-ac_btn = tk.Button(root, text="AC: OFF", command=toggle_aircon)
+ac_btn = tk.Button(root, text="Temperature: OFF", command=toggle_aircon, font=("Arial", 13))
 ac_btn.pack()
 
 # Bật/tắt phun sương
-humidifier_btn = tk.Button(root, text="Humidifier: OFF", command=toggle_humidifier)
+humidifier_btn = tk.Button(root, text="Humidifier: OFF", command=toggle_humidifier, font=("Arial", 13))
 humidifier_btn.pack()
 
-temp_label = tk.Label(root, text=f"Nhiệt độ cài đặt: {set_temp}°C")
+temp_label = tk.Label(root, text=f"Nhiệt độ cài đặt: {set_temp}°C", font=("Arial", 13))
 temp_label.pack()
 
 # Tăng/Giảm nhiệt độ
@@ -186,7 +187,7 @@ temp_up.grid(row=0, column=0)
 temp_down = tk.Button(temp_frame, text="-", command=lambda: set_temperature(set_temp - 1))
 temp_down.grid(row=0, column=1)
 
-humidity_label = tk.Label(root, text=f"Độ ẩm cài đặt: {set_humidity}%")
+humidity_label = tk.Label(root, text=f"Độ ẩm cài đặt: {set_humidity}%", font=("Arial", 13))
 humidity_label.pack()
 
 # Tăng/Giảm độ ẩm
@@ -200,21 +201,20 @@ humi_down.grid(row=0, column=1)
 
 
 # Hẹn giờ bật/tắt
-schedule_label = tk.Label(root, text="Hẹn giờ: ---")
+schedule_label = tk.Label(root, text="Hẹn giờ: ---", font=("Arial", 13))
 schedule_label.pack()
 schedule_entry = tk.Entry(root)
 schedule_entry.pack()
-schedule_btn = tk.Button(root, text="Đặt giờ", command=set_schedule)
+schedule_btn = tk.Button(root, text="Đặt giờ", font=("Arial", 13), command=set_schedule)
 schedule_btn.pack()
 
 # Hẹn giờ chạy X giờ
-duration_label = tk.Label(root, text="Chạy trong: --- giờ")
+duration_label = tk.Label(root, text="Chạy trong: --- giờ", font=("Arial", 13))
 duration_label.pack()
 duration_entry = tk.Entry(root)
 duration_entry.pack()
-duration_btn = tk.Button(root, text="Đặt thời gian chạy", command=set_duration)
+duration_btn = tk.Button(root, text="Đặt thời gian chạy", command=set_duration, font=("Arial", 13))
 duration_btn.pack()
 
-# Chạy chương trình
 main_loop()
 root.mainloop()
