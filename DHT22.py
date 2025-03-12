@@ -8,11 +8,11 @@ class DHT22:
     def read(self):
         temperature = random.uniform(15.0, 30.0)  
         humidity = random.uniform(30.0, 70.0)
-        time.sleep(55)
+        time.sleep(2)
         
         return temperature, humidity
 
 def readSensor(pin):
     sensor = DHT22(pin)
     return sensor.read()
-    time.sleep(5)
+    time.sleep(2)
