@@ -1,220 +1,208 @@
 import time
-import random
-import datetime
-import tkinter as tk
+import threading
+from EmulatorGUI import GPIO
 from DHT22 import DHT22
 from pnhLCD1602 import LCD1602
 
-# Khởi tạo cảm biến và màn hình LCD
-sensor = DHT22(pin=4)
-lcd = LCD1602()
+def Main():
+    try:
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setwarnings(False)
 
-# Biến điều khiển
-auto_mode = False
-aircon_on = False
-humidifier_on = False
-set_temp = 25
-set_humidity = 50
-schedule_time = None
-duration_hours = None 
-duration_start = None
+        BTN_AUTO = 17
+        BTN_SELECT = 27
+        BTN_UP = 6
+        BTN_DOWN = 5
+        BTN_BACK = 19
+        BTN_OK = 16
+        BTN_ON = 12
+        LED_Temp = 23
+        LED_Humid = 24
+        LED_auto_mode = 18
 
-def toggle_auto_mode():
-    global auto_mode
-    auto_mode = not auto_mode
-    update_ui()
+        GPIO.setup(LED_Temp, GPIO.OUT)
+        GPIO.setup(LED_Humid, GPIO.OUT)
+        GPIO.setup(LED_auto_mode, GPIO.OUT)
+        GPIO.output(LED_Temp, GPIO.LOW)
+        GPIO.output(LED_Humid, GPIO.LOW)
+        GPIO.output(LED_auto_mode, GPIO.LOW)
 
-def toggle_aircon():
-    global aircon_on
-    aircon_on = not aircon_on
-    update_ui()
+        gpioPin = [BTN_AUTO, BTN_SELECT, BTN_UP, BTN_DOWN, BTN_BACK, BTN_OK, BTN_ON]
+        Choices = ["Nhiệt độ", "Độ ẩm"]
+        ledPin = [LED_Temp, LED_Humid, LED_auto_mode]
+        
+        lcd = LCD1602()
+        dht_sensor = DHT22(pin=4)
 
-def toggle_humidifier():
-    global humidifier_on
-    humidifier_on = not humidifier_on
-    update_ui()
+        global current_selection, measuring, in_selection_mode, set_temp, set_humid, temperature_on, humidifier_on
+        current_selection = 0
+        measuring = True
+        set_temp = 25
+        set_humid = 50
+        in_selection_mode = False
+        temperature_on = False
+        humidifier_on = False
 
-def set_temperature(temp):
-    global set_temp
-    set_temp = temp
-    update_ui()
+        for pin in gpioPin:
+            GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
-def set_humidity_level(humidity):
-    global set_humidity
-    set_humidity = humidity
-    update_ui()
+        def move_selection():
+            """Chuyển lựa chọn giữa Nhiệt độ và Độ ẩm khi nhấn nút."""
+            global current_selection            
+            current_selection = (current_selection + 1) % len(Choices)
+            display_current_selection()  
 
-def set_schedule():
-    global schedule_time
-    schedule_time = schedule_entry.get()  #
-    print(f"🕒 Đã đặt hẹn giờ! Điều hòa sẽ BẬT vào {schedule_time} và chạy trong 2 phút.")
-    update_ui()
+        def start_measure():
+            """Đo nhiệt độ, độ ẩm và hiển thị trên LCD."""
+            global measuring
+            while measuring:
+                temp, humid = dht_sensor.read()
+                if temp is not None and humid is not None:
+                    lcd.clear()
+                    lcd.write_string(f"Temp:{'ON' if temperature_on else 'OFF'} T:{temp:.1f}C")
+                    lcd.set_cursor(1, 0)
+                    lcd.write_string(f"Humid:{'ON' if humidifier_on else 'OFF'} H:{humid:.1f}%")
+                update_leds()
+                time.sleep(2)
 
+        def update_leds():
+            """Cập nhật trạng thái đèn LED"""
+            GPIO.output(LED_auto_mode, GPIO.HIGH if measuring else GPIO.LOW)
+            GPIO.output(LED_Temp, GPIO.HIGH if temperature_on else GPIO.LOW)
+            GPIO.output(LED_Humid, GPIO.HIGH if humidifier_on else GPIO.LOW)
 
-def set_duration():
-    global duration_hours, duration_start
-    if aircon_on or humidifier_on:  
-        try:
-            duration_hours = int(duration_entry.get()) 
-            duration_start = datetime.datetime.now()
-            print(f"⏳ Đã đặt thời gian chạy {duration_hours} phút. Điều hòa sẽ tự tắt sau {duration_hours} phút.")
-            update_ui()
-        except ValueError:
-            print("⚠️ Lỗi: Hãy nhập số phút hợp lệ!")
+        def display_current_selection():
+            """Hiển thị chế độ lựa chọn hiện tại."""
+            lcd.clear()
+            lcd.set_cursor(0, 0)
+            lcd.write_string("CHON THIET LAP:")
+            lcd.set_cursor(1, 0)
+            lcd.write_string(f"> {Choices[current_selection]}")
 
+        def confirm_selection(lcd):
+            global in_selection_mode, temperature_on, humidifier_on, measuring, set_temp, set_humid  
+            lcd.clear()
 
-def update_display(temp, humidity):
-    lcd.clear()
-    if aircon_on and humidifier_on:
-        lcd.write_string(f"T:{set_temp}C Env:{temp:.1f}C")
-        lcd.set_cursor(1, 0)
-        lcd.write_string(f"H:{set_humidity}% Env:{humidity:.1f}%")
-    elif aircon_on and not humidifier_on:
-        lcd.set_cursor(0, 0)
-        lcd.write_string(f"T:{set_temp}C Env:{temp:.1f}C")
-        lcd.set_cursor(1, 0)
-        lcd.write_string(f"H:OFF Env:{humidity:.1f}%")
-    elif not aircon_on and humidifier_on :
-        lcd.set_cursor(0, 0)
-        lcd.write_string(f"T:OFF Env:{temp:.1f}C")
-        lcd.set_cursor(1, 0)
-        lcd.write_string(f"H:{set_humidity}% Env:{humidity:.1f}%")
-    elif not aircon_on and not humidifier_on  :
-        lcd.set_cursor(0, 0)
-        lcd.write_string(f"T:OFF Env:{temp:.1f}C")
-        lcd.set_cursor(1, 0)
-        lcd.write_string(f"H:OFF Env:{humidity:.1f}%")
+            if current_selection == 0:
+                update_leds()
+                lcd.write_string(f"TEMP: {'ON' if temperature_on else 'OFF'}")
+                lcd.set_cursor(1, 0)
+                lcd.write_string(f"T: {set_temp}C")
+                
+                # Điều chỉnh nhiệt độ 
+                while in_selection_mode:
+                    if GPIO.input(BTN_UP) == GPIO.LOW:
+                        time.sleep(0.1)
+                        set_temp += 1
+                        lcd.clear()
+                        lcd.write_string(f"TEMP:{'ON' if temperature_on else 'OFF'}")
+                        lcd.set_cursor(1, 0)
+                        lcd.write_string(f"T: {set_temp}C")
 
-def control_aircon(temp):
-    global aircon_on
-    if auto_mode:
-        if temp > 27 or temp < 18:
-            aircon_on = True
-        elif temp == set_temp:
-            aircon_on = False
-        update_ui()
+                    if GPIO.input(BTN_DOWN) == GPIO.LOW:
+                        time.sleep(0.1)
+                        set_temp -= 1
+                        lcd.clear()
+                        lcd.write_string(f"TEMP:{'ON' if temperature_on else 'OFF'}")
+                        lcd.set_cursor(1, 0)
+                        lcd.write_string(f"T: {set_temp}C")
 
-def control_humidifier(humidity):
-    global humidifier_on
-    if auto_mode:
-        if humidity < 40 or humidity > 60:
-            humidifier_on = True
-        elif humidity == set_humidity:
-            humidifier_on = False
-        update_ui()
+                    if GPIO.input(BTN_ON) == GPIO.LOW:
+                        temperature_on = not temperature_on 
+                        time.sleep(0.1)
+                        lcd.clear()
+                        lcd.write_string(f"TEMP:{'ON' if temperature_on else 'OFF'}")
+                        lcd.set_cursor(1, 0)
+                        lcd.write_string(f"T: {set_temp}C") 
 
-schedule_activated = False 
+                    if GPIO.input(BTN_BACK) == GPIO.LOW: 
+                        time.sleep(0.1)
+                        back_to_measure()
+                        return
 
-def check_schedule():
-    global aircon_on, humidifier_on, duration_start, schedule_activated
-    now = datetime.datetime.now().strftime("%H:%M")
+            elif current_selection == 1:  # Chọn "Độ ẩm"  
+                update_leds()
+                lcd.write_string(f"HUMID: {'ON' if humidifier_on else 'OFF'}")
+                lcd.set_cursor(1, 0)
+                lcd.write_string(f"H: {set_humid}%")
 
-    if schedule_time and now == schedule_time and not aircon_on and not schedule_activated:
-        aircon_on = True
-        humidifier_on = True
-        duration_start = datetime.datetime.now()
-        schedule_activated = True  
-        print(f"🕒 Hẹn giờ kích hoạt! Điều hòa và máy phun sương đã BẬT vào {now}. Tự động tắt sau 2 phút.")
-        update_ui()
+                # Điều chỉnh độ ẩm
+                while in_selection_mode:
+                    if GPIO.input(BTN_UP) == GPIO.LOW:
+                        time.sleep(0.1)
+                        set_humid += 5
+                        lcd.clear()
+                        lcd.write_string(f"HUM:{'ON' if humidifier_on else 'OFF'}")
+                        lcd.set_cursor(1, 0)
+                        lcd.write_string(f"H: {set_humid}%")
 
-    if duration_start:
-        elapsed = (datetime.datetime.now() - duration_start).total_seconds() / 60
-        if elapsed >= 2:  # Sau 2 phút thì tắt (tiện cho việc test)
-            aircon_on = False
-            humidifier_on = False
-            duration_start = None
-            schedule_activated = False 
-            print(f"⏳ Đã hết 2 phút! Điều hòa và máy phun sương đã TẮT.")
-            update_ui()
+                    if GPIO.input(BTN_DOWN) == GPIO.LOW:
+                        time.sleep(0.1)
+                        set_humid -= 5
+                        lcd.clear()
+                        lcd.write_string(f"HUM:{'ON' if humidifier_on else 'OFF'}")
+                        lcd.set_cursor(1, 0)
+                        lcd.write_string(f"H: {set_humid}%")
 
-def check_duration():
-    global aircon_on, humidifier_on, duration_hours, duration_start
-    if duration_hours and duration_start:
-        elapsed = (datetime.datetime.now() - duration_start).total_seconds() / 60 
-        if elapsed >= duration_hours:
-            aircon_on = False
-            humidifier_on = False
-            duration_hours = None
-            duration_start = None
-            print(f"⏳ Hết thời gian cài đặt! Điều hòa và máy phun sương đã TẮT.")
-            update_ui()
+                    if GPIO.input(BTN_ON) == GPIO.LOW:
+                        humidifier_on = not humidifier_on
+                        time.sleep(0.1)
+                        lcd.clear()
+                        lcd.write_string(f"HUM:{'ON' if humidifier_on else 'OFF'}")
+                        lcd.set_cursor(1, 0)
+                        lcd.write_string(f"H: {set_humid}%")
 
-def update_ui():
-    auto_btn.config(text=f"Auto Mode: {'ON' if auto_mode else 'OFF'}")
-    ac_btn.config(text=f"Temperature: {'ON' if aircon_on else 'OFF'}")
-    humidifier_btn.config(text=f"Humidifier: {'ON' if humidifier_on else 'OFF'}")
-    temp_label.config(text=f"Nhiệt độ cài đặt: {set_temp}°C")
-    humidity_label.config(text=f"Độ ẩm cài đặt: {set_humidity}%")
-    schedule_label.config(text=f"Hẹn giờ: {schedule_time if schedule_time else '---'}")
-    duration_label.config(text=f"Chạy trong: {duration_hours if duration_hours else '---'} giờ")
+                    if GPIO.input(BTN_BACK) == GPIO.LOW: 
+                        time.sleep(0.1)
+                        back_to_measure()
+                        return
 
-def main_loop():
-    temp, humidity = random.uniform(15, 30), random.uniform(30, 70)
-    update_display(temp, humidity)
-    control_aircon(temp)
-    control_humidifier(humidity)
-    check_schedule()
-    check_duration()
-    root.after(3000, main_loop)
+            time.sleep(2)
 
-# Giao diện Tkinter
-root = tk.Tk()
-root.geometry("500x400")
-root.title("Điều hòa thông minh")
+        def back_to_measure():
+            """Nhấn BACK để thoát chế độ chọn và quay lại đo lường"""
+            global in_selection_mode, measuring
+            in_selection_mode = False
+            measuring = True
+            update_leds()
+            threading.Thread(target=start_measure, daemon=True).start()
 
-# Auto Mode
-auto_btn = tk.Button(root, text="Auto Mode: OFF", command=toggle_auto_mode, font=("Arial", 13))
-auto_btn.pack()
+        # Chạy đo nhiệt độ ngay khi khởi động
+        measure_thread = threading.Thread(target=start_measure, daemon=True)
+        measure_thread.start()
 
-# Bật/tắt điều hòa
-ac_btn = tk.Button(root, text="Temperature: OFF", command=toggle_aircon, font=("Arial", 13))
-ac_btn.pack()
+        while True:
+            if GPIO.input(BTN_SELECT) == GPIO.LOW:  # Nhấn chọn
+                time.sleep(0.1)
+                if GPIO.input(BTN_SELECT) == GPIO.LOW:
+                    in_selection_mode = True
+                    measuring = False  # Dừng đo khi vào chọn thiết lập
+                    display_current_selection()
+                    time.sleep(0.3)  # Thời gian chờ để tránh nhấn quá nhanh
 
-# Bật/tắt phun sương
-humidifier_btn = tk.Button(root, text="Humidifier: OFF", command=toggle_humidifier, font=("Arial", 13))
-humidifier_btn.pack()
+            if in_selection_mode and GPIO.input(BTN_UP) == GPIO.LOW:  # Chuyển lựa chọn
+                time.sleep(0.1)
+                if GPIO.input(BTN_UP) == GPIO.LOW:
+                    move_selection()
+                    time.sleep(0.3)
 
-temp_label = tk.Label(root, text=f"Nhiệt độ cài đặt: {set_temp}°C", font=("Arial", 13))
-temp_label.pack()
+            if in_selection_mode and GPIO.input(BTN_OK) == GPIO.LOW:  # Xác nhận
+                time.sleep(0.1)
+                if GPIO.input(BTN_OK) == GPIO.LOW:
+                    confirm_selection(lcd)  # Truyền lcd vào đây
+                    time.sleep(0.3)
 
-# Tăng/Giảm nhiệt độ
-temp_frame = tk.Frame(root)
-temp_frame.pack()
+            if in_selection_mode and GPIO.input(BTN_BACK) == GPIO.LOW:  # Nhấn BACK để thoát
+                time.sleep(0.1)
+                if GPIO.input(BTN_BACK) == GPIO.LOW:
+                    back_to_measure()  # Quay lại chế độ đo
+                    time.sleep(0.3)  # Thời gian chờ sau khi thoát
 
-temp_up = tk.Button(temp_frame, text="+", command=lambda: set_temperature(set_temp + 1))
-temp_up.grid(row=0, column=0)
+            time.sleep(0.05)  # Thêm thời gian nhỏ để vòng lặp hoạt động mượt mà hơn
 
-temp_down = tk.Button(temp_frame, text="-", command=lambda: set_temperature(set_temp - 1))
-temp_down.grid(row=0, column=1)
+    except KeyboardInterrupt:
+        GPIO.cleanup()
+        print("Chương trình kết thúc.")
 
-humidity_label = tk.Label(root, text=f"Độ ẩm cài đặt: {set_humidity}%", font=("Arial", 13))
-humidity_label.pack()
-
-# Tăng/Giảm độ ẩm
-humi_frame = tk.Frame(root)
-humi_frame.pack()
-
-humi_up = tk.Button(humi_frame, text="+", command=lambda: set_humidity_level(set_humidity + 5))
-humi_up.grid(row=0, column=0)
-humi_down = tk.Button(humi_frame, text="-", command=lambda: set_humidity_level(set_humidity - 5))
-humi_down.grid(row=0, column=1)
-
-
-# Hẹn giờ bật/tắt
-schedule_label = tk.Label(root, text="Hẹn giờ: ---", font=("Arial", 13))
-schedule_label.pack()
-schedule_entry = tk.Entry(root)
-schedule_entry.pack()
-schedule_btn = tk.Button(root, text="Đặt giờ", font=("Arial", 13), command=set_schedule)
-schedule_btn.pack()
-
-# Hẹn giờ chạy X giờ
-duration_label = tk.Label(root, text="Chạy trong: --- giờ", font=("Arial", 13))
-duration_label.pack()
-duration_entry = tk.Entry(root)
-duration_entry.pack()
-duration_btn = tk.Button(root, text="Đặt thời gian chạy", command=set_duration, font=("Arial", 13))
-duration_btn.pack()
-
-main_loop()
-root.mainloop()
+if __name__ == "__main__":
+    Main()
