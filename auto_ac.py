@@ -15,19 +15,28 @@ def Main():
         BTN_DOWN = 5
         BTN_BACK = 19
         BTN_OK = 16
-        RELAY = 12
+        BTN_AC= 7
+        BTN_HM = 8
+        BTN_AUTOMODE = 12
+        RELAY_TEMP = 20
+        RELAY_HUMID = 21
         LED_Temp = 23
         LED_Humid = 24
         LED_auto_mode = 18
 
+        GPIO.setup(RELAY_TEMP, GPIO.OUT)
+        GPIO.setup(RELAY_HUMID, GPIO.OUT)
         GPIO.setup(LED_Temp, GPIO.OUT)
         GPIO.setup(LED_Humid, GPIO.OUT)
         GPIO.setup(LED_auto_mode, GPIO.OUT)
+
         GPIO.output(LED_Temp, GPIO.LOW)
         GPIO.output(LED_Humid, GPIO.LOW)
         GPIO.output(LED_auto_mode, GPIO.LOW)
+        GPIO.output(RELAY_TEMP, GPIO.LOW)
+        GPIO.output(RELAY_HUMID, GPIO.LOW)
 
-        gpioPin = [ BTN_SELECT, BTN_UP, BTN_DOWN, BTN_BACK, BTN_OK, RELAY]
+        gpioPin = [ BTN_SELECT, BTN_UP, BTN_DOWN, BTN_BACK, BTN_OK, BTN_AUTOMODE,BTN_AC,BTN_HM]
         Choices = ["Nhiệt độ", "Độ ẩm", "Lập Lịch", "Hẹn giờ"]
         ledPin = [LED_Temp, LED_Humid, LED_auto_mode]
         
@@ -76,7 +85,7 @@ def Main():
                             humidifier_on = False
                         update_leds()
 
-                if GPIO.input(RELAY) == GPIO.LOW:
+                if GPIO.input(BTN_AUTOMODE) == GPIO.LOW:
                     auto_mode = not auto_mode
                     print(f"Chế độ tự động đang {'BẬT!' if auto_mode else 'TẮT!'}")
                     update_leds()
@@ -113,7 +122,7 @@ def Main():
                     lcd.set_cursor(1, 0)
                     lcd.write_string(f"T: {set_temp}C")
 
-                if GPIO.input(RELAY) == GPIO.LOW:
+                if GPIO.input(BTN_AC) == GPIO.LOW:
                     temperature_on = not temperature_on
                     update_leds()
                     time.sleep(0.1)
@@ -152,7 +161,7 @@ def Main():
                     lcd.set_cursor(1, 0)
                     lcd.write_string(f"H: {set_humid}%")
 
-                if GPIO.input(RELAY) == GPIO.LOW:
+                if GPIO.input(BUTTON_HM) == GPIO.LOW:
                     humidifier_on = not humidifier_on
                     update_leds()
                     time.sleep(0.1)
@@ -211,7 +220,7 @@ def Main():
                     lcd.set_cursor(1, 0)
                     lcd.write_string(f"Kết thúc: {schedule_time[2]}:{schedule_time[3]:02d}")
 
-                if GPIO.input(RELAY) == GPIO.LOW:  
+                if GPIO.input(BTN_AUTOMODE) == GPIO.LOW:  
                     time.sleep(0.1)
                     if auto_mode:
                         auto_mode == False
@@ -269,7 +278,6 @@ def Main():
                     back_to_start()
                     return
 
-
         def display_current_selection():
             lcd.clear()
             lcd.set_cursor(0, 0)
@@ -301,7 +309,7 @@ def Main():
             measuring = True
             update_leds()
             threading.Thread(target=start, daemon=True).start()
-
+            
         # Chạy đo nhiệt độ ngay khi khởi động
         measure_thread = threading.Thread(target=start, daemon=True)
         measure_thread.start()
@@ -332,6 +340,24 @@ def Main():
                 if GPIO.input(BTN_BACK) == GPIO.LOW:
                     back_to_start() 
                     time.sleep(0.1)  
+
+            if not auto_mode and GPIO.input(BTN_AC) == GPIO.LOW:
+                time.sleep(0.1)
+                if GPIO.input(BTN_AC) == GPIO.LOW:
+                    temperature_on = not temperature_on
+                    GPIO.output(RELAY_TEMP, GPIO.HIGH if temperature_on else GPIO.LOW)
+                    GPIO.output(LED_Temp, GPIO.HIGH if temperature_on else GPIO.LOW)
+                    print("Điều hòa:", "BẬT" if temperature_on else "TẮT")
+                    time.sleep(0.3)
+
+            if not auto_mode and GPIO.input(BTN_HM) == GPIO.LOW:
+                time.sleep(0.1)
+                if GPIO.input(BTN_HM) == GPIO.LOW:
+                    humidifier_on = not humidifier_on
+                    GPIO.output(RELAY_HUMID, GPIO.HIGH if humidifier_on else GPIO.LOW)
+                    GPIO.output(LED_Humid, GPIO.HIGH if humidifier_on else GPIO.LOW)
+                    print("Phun sương:", "BẬT" if humidifier_on else "TẮT")
+                    time.sleep(0.3)
 
             time.sleep(0.05)
 

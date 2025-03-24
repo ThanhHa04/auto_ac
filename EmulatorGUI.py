@@ -294,16 +294,16 @@ def toggleButton(gpioID):
     global InterruptPins  
     for item in InterruptPins:
         idItem = item
-        s = idItem.LastPinState
-        idItem.LastPinState = int(objPin.In)
-        lt = idItem.LastChangeTime
-        idItem.LastChangeTime = time.time()
-        if (s != idItem.LastPinState):
-            if idItem.InterruptCondiction == idItem.LastPinState:
-                idItem.CallBack(gpioID)
-            elif idItem.InterruptCondiction == 2:
-                idItem.CallBack(gpioID)  
-    
+        if idItem.PinNumber == int(str(gpioID)):
+            s = idItem.LastPinState
+            idItem.LastPinState = int(objPin.In)
+            lt = idItem.LastChangeTime
+            idItem.LastChangeTime = time.time()
+            if (s != idItem.LastPinState):
+                if idItem.InterruptCondiction == idItem.LastPinState:
+                    idItem.CallBack(gpioID)
+                elif idItem.InterruptCondiction == 2:
+                    idItem.CallBack(gpioID)  
   
 def buttonClick(self): 
     gpioID = (self.widget.config('command')[-1])
