@@ -53,7 +53,7 @@ def Main():
         temperature_on = False
         humidifier_on = False
         auto_mode = False
-        schedule_time = (17, 0, 17, 0)
+        schedule_time = (13, 0, 13, 0)
         timer_time = 0
         temp_lowest = 16
         temp_highest = 28
@@ -88,7 +88,9 @@ def Main():
                         elif auto_mode and humid > set_humid:
                             humidifier_on = False
                         update_leds()
-
+                if not auto_mode:
+                    check_timer()
+                    check_schedule() 
                 time.sleep(0.2)
 
         def update_leds():
@@ -407,10 +409,6 @@ def Main():
             
         measure_thread = threading.Thread(target=start, daemon=True)
         measure_thread.start()
-        timer_thread = threading.Thread(target=check_timer, daemon=True)
-        timer_thread.start()
-        schedule_thread = threading.Thread(target=check_schedule, daemon=True)
-        schedule_thread.start()
 
         while True:
             if GPIO.input(BTN_SELECT) == GPIO.LOW: 
