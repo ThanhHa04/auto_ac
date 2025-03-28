@@ -89,8 +89,11 @@ def Main():
                             humidifier_on = False
                         update_leds()
                 if not auto_mode:
-                    check_timer()
-                    check_schedule() 
+                    if temperature_on:
+                        check_timer()
+                    elif not temperature_on:
+                        check_schedule()
+                     
                 time.sleep(0.2)
 
         def update_leds():
